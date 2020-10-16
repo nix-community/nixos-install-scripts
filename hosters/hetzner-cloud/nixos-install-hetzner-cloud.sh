@@ -6,12 +6,15 @@
 #
 # Run like:
 #
-#     curl https://nh2.me/nixos-install-hetzner-cloud.sh | sudo bash
+#     curl https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
+#     # or shorter:
+#     curl https://git.io/JTspo | sudo bash
 #
 # To run it from the Hetzner Cloud web terminal without typing it down,
-# use `xdotoool` (you have e.g. 3 seconds to focus the window):
+# you can either select it and then middle-click onto the web terminal, (that pastes
+# to it), or se `xdotoool` (you have e.g. 3 seconds to focus the window):
 #
-#     sleep 3 && xdotool type --delay 50 'curl https://nh2.me/nixos-install-hetzner-cloud.sh | sudo bash'
+#     sleep 3 && xdotool type --delay 50 'curl https://git.io/JTspo | sudo bash'
 #
 # (In the xdotool invocation you may have to replace chars so that
 # the right chars appear on the US-English keyboard.)
