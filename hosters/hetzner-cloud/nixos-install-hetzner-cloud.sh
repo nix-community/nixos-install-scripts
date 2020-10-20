@@ -1,14 +1,15 @@
 #! /usr/bin/env bash
 
 # Script to install NixOS from the Hetzner Cloud NixOS bootable ISO image.
-# Wipes the disk!
+# You must boot that image from the Hetzner Cloud GUI first.
+# This script wipes the disk!
 # Tested with Hetzner's `NixOS 20.03 (amd64/minimal)` ISO image.
 #
 # Run like:
 #
-#     curl https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
+#     curl -L https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
 #     # or shorter:
-#     curl https://git.io/JTspo | sudo bash
+#     curl -L https://git.io/JTspo | sudo bash
 #
 # To run it from the Hetzner Cloud web terminal without typing it down,
 # you can either select it and then middle-click onto the web terminal, (that pastes
