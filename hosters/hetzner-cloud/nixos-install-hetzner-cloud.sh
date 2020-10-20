@@ -15,10 +15,8 @@
 #
 # Run like:
 #
-#     # Replace the URLs by your own that have your pubkey in
+#     # Replace this URL by your own that has your pubkey in
 #     curl -L https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
-#     # or shorter:
-#     curl -L https://git.io/JTspo | sudo bash
 #
 # To run it from the Hetzner Cloud web terminal without typing it down,
 # you can either select it and then middle-click onto the web terminal, (that pastes
