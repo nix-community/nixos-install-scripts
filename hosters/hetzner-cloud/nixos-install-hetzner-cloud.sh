@@ -2,30 +2,36 @@
 
 # Script to install NixOS from the Hetzner Cloud NixOS bootable ISO image.
 # (tested with Hetzner's `NixOS 20.03 (amd64/minimal)` ISO image).
-# You must boot that image from the Hetzner Cloud GUI first.
-# This script wipes the disk!
+# 
+# This script wipes the disk of the server!
 #
-# To be able to SSH straight in (recommended), you must replace hardcoded pubkey
-# further down in the section labelled "Replace this by your SSH pubkey" by you own,
-# and host the modified script way under a URL of your choosing
-# (e.g. gist.github.com with git.io as URL shortener service).
+# Instructions:
 #
-# Otherwise you'll be running with my pubkey, but you can change it afterwards
-# by logging in via the Hetzner Cloud web terminal as `root` with empty password.
+# 1. Mount the above mentioned ISO image from the Hetzner Cloud GUI
+#    and reboot the server into it; do not run the default system (e.g. Ubuntu).
+# 2. To be able to SSH straight in (recommended), you must replace hardcoded pubkey
+#    further down in the section labelled "Replace this by your SSH pubkey" by you own,
+#    and host the modified script way under a URL of your choosing
+#    (e.g. gist.github.com with git.io as URL shortener service).
+# 3. Run on the server:
 #
-# Run like:
-#
-#     # Replace this URL by your own that has your pubkey in
-#     curl -L https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
+#       # Replace this URL by your own that has your pubkey in
+#       curl -L https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
+# 4. Unmount the ISO image from the Hetzner Cloud GUI.
+# 5. Reboot.
 #
 # To run it from the Hetzner Cloud web terminal without typing it down,
 # you can either select it and then middle-click onto the web terminal, (that pastes
-# to it), or se `xdotoool` (you have e.g. 3 seconds to focus the window):
+# to it), or use `xdotool` (you have e.g. 3 seconds to focus the window):
 #
-#     sleep 3 && xdotool type --delay 50 'curl https://git.io/JTspo | sudo bash'
+#     sleep 3 && xdotool type --delay 50 'curl YOUR_URL_HERE | sudo bash'
 #
 # (In the xdotool invocation you may have to replace chars so that
 # the right chars appear on the US-English keyboard.)
+#
+# If you do not replace the pubkey, you'll be running with my pubkey, but you can
+# change it afterwards by logging in via the Hetzner Cloud web terminal as `root`
+# with empty password.
 
 set -e
 
