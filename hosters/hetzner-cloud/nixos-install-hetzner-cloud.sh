@@ -1,12 +1,21 @@
 #! /usr/bin/env bash
 
 # Script to install NixOS from the Hetzner Cloud NixOS bootable ISO image.
+# (tested with Hetzner's `NixOS 20.03 (amd64/minimal)` ISO image).
 # You must boot that image from the Hetzner Cloud GUI first.
 # This script wipes the disk!
-# Tested with Hetzner's `NixOS 20.03 (amd64/minimal)` ISO image.
+#
+# To be able to SSH straight in (recommended), you must replace hardcoded pubkey
+# further down in the section labelled "Replace this by your SSH pubkey" by you own,
+# and host the modified script way under a URL of your choosing
+# (e.g. gist.github.com with git.io as URL shortener service).
+#
+# Otherwise you'll be running with my pubkey, but you can change it afterwards
+# by logging in via the Hetzner Cloud web terminal as `root` with empty password.
 #
 # Run like:
 #
+#     # Replace the URLs by your own that have your pubkey in
 #     curl -L https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
 #     # or shorter:
 #     curl -L https://git.io/JTspo | sudo bash
@@ -19,19 +28,11 @@
 #
 # (In the xdotool invocation you may have to replace chars so that
 # the right chars appear on the US-English keyboard.)
-#
-# If you want to be able to SSH straight in,
-# do not forget to replace the SSH key below by yours
-# (in the section labelled "Replace this by your SSH pubkey"),
-# and host script modified this way under and URL of your choosing.
-# Otherwise you'l be running with my pubkey, but you can change it
-# afterwards by logging in via the Hetzner Cloud web terminal as `root`
-# with empty password.
 
 set -e
 
 # Hetzner Cloud OS images grow the root partition to the size of the local
-# disk on first book. In case the NixOS live ISO is booted immediately on
+# disk on first boot. In case the NixOS live ISO is booted immediately on
 # first powerup, that does not happen. Thus we need to grow the partition
 # by deleting and re-creating it.
 sgdisk -d 1 /dev/sda
