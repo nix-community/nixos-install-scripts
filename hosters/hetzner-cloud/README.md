@@ -5,7 +5,7 @@
 3. You won't be able to ssh into your server. You will have to do the following steps by logging in with the Hetzner UI.
 - On the top right of the server details click on the icon `>_`.
 - fork this repo and replace your SSH public key in the script. Make a commit on a new branch for example.
-- get the url of the script you created (should look like https://raw.github.com/YOUR_USER_NAME/nixos-install-scripts/YOUR_BRANCH_NAME/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh)
+- get the url of the script you created (should look like https://raw.github.com/YOUR_USER_NAME/nixos-install-scripts/YOUR_BRANCH_NAME/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh).
 - paste the following command into your console gui `curl -L YOUR_URL | sudo bash`.
 4. on your own computer you can now ssh into the newly created machine.
 
