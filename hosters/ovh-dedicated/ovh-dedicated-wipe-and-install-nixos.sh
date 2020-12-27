@@ -8,7 +8,7 @@
 # Prerequisites:
 #   * Create a LUKS key file at /root/benacofs-luks-key
 #     e.g. by copying it up.
-#   * Update the script to adjust SSH pubkeys, hostname NixOS version etc.
+#   * Update the script to put in your SSH pubkey, adjust hostname, NixOS version etc.
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < ovh-dedicated-wipe-and-install-nixos.sh
@@ -302,7 +302,8 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   services.openssh.permitRootLogin = "prohibit-password";
 
   users.users.root.openssh.authorizedKeys.keys = [
-    "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAtwCIGPYJlD2eeUtxngmT+4yR7BMlK0F5kzj+84uHsxxsy+PXFrP/tScCpwmuoiEYNv/9WKnPJJfCA9XlIDr6cla1MLpaW6eg672TRYMmKzH6SLlkg+kyDmPxSIJw+KdKfnPYyva+Y/VocACYJo0voabUeLAVgtSKGz/AFzccjfOR0GmFO911zjAaR+jFb9M7t7dveNVKm9KbuBfu3giMgGg3/mKz1TKY8yk2ZOxpT5CllBb+B5BcEf+7IGNvNxr1Z0zz5cFXQ3LyBIZklnC/OaQCnD78BSiyPTkIXcmBFal2TaFwTDvki6PuCRpJy+dU1fDdgWLql97D0SVnjmmomw== nh2@deditus.de"
+    # Replace this by your pubkey!
+    "ssh-rsa AAAAAAAAAAA..."
   ];
 
   services.openssh.enable = true;
