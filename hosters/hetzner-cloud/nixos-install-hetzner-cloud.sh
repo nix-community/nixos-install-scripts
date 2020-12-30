@@ -17,8 +17,10 @@
 #
 #       # Replace this URL by your own that has your pubkey in
 #       curl -L https://raw.githubusercontent.com/nix-community/nixos-install-scripts/master/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh | sudo bash
+#
+#    This will install NixOS and power off the server.
 # 4. Unmount the ISO image from the Hetzner Cloud GUI.
-# 5. Reboot.
+# 5. Turn the server back on from the Hetzner Cloud GUI.
 #
 # To run it from the Hetzner Cloud web terminal without typing it down,
 # you can either select it and then middle-click onto the web terminal, (that pastes
@@ -71,4 +73,4 @@ echo '
 
 nixos-install --no-root-passwd
 
-reboot
+poweroff
