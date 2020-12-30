@@ -7,7 +7,8 @@
     - Fork this repo and replace your SSH public key in the script. For exapmle, make a commit on a new branch.
     - Get the URL of the script you created (might look like `https://raw.github.com/YOUR_USER_NAME/nixos-install-scripts/YOUR_BRANCH_NAME/hosters/hetzner-cloud/nixos-install-hetzner-cloud.sh`).
     - Paste the following command into your console gui `curl -L YOUR_URL | sudo bash`.
-4. on your own computer you can now ssh into the newly created machine.
+4. After the system reboots, power it off and unmount the NixOS image in the Hetzner settings, then power it on again.
+5. When it boots, you can now SSH into the newly created machine from your own computer.
 
 # Troubleshooting
 
