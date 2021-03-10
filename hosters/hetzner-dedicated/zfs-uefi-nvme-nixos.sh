@@ -5,14 +5,14 @@
 # This is for a specific server configuration; adjust where needed.
 #
 # Prerequisites:
-#   * install a distribution on your server (for example ubuntu)
-#   * boot in rescue mode
+#   * this script requires ubuntu installed
 #   * Update the script to put in your SSH pubkey, adjust hostname, NixOS version etc.
 #   * have the following packages installed
 #   * - zfs-initramfs
 #   * - parted
 #   * - sudo
-apt-get install -y sudo parted zfs-initramfs grub-efi-amd64-bin
+#   * - grub-efi-amd64-bin
+apt-get install -y parted zfs-initramfs grub-efi-amd64-bin
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
@@ -125,12 +125,12 @@ parted --script $DISK2 mklabel gpt
 # GPT partition names are limited to 36 UTF-16 chars, see https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2-33).
 parted --script --align optimal $DISK1 -- mklabel gpt \
     mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on \
-    mkpart "EFI system partition" fat32 2MB 512MB set 2 esp on \
+    mkpart 'EFI-system-partition' 2MB 512MB set 2 esp on \
     mkpart 'data-partition' 512MB '100%'
 
 parted --script --align optimal $DISK2 -- mklabel gpt \
     mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on \
-    mkpart "EFI system partition" fat32 2MB 512MB set 2 esp on \
+    mkpart 'EFI-system-partition' 2MB 512MB set 2 esp on \
     mkpart 'data-partition' 512MB '100%'
 
 # Reload partitions
@@ -315,7 +315,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
 
   users.users.root.openssh.authorizedKeys.keys = [
     # Replace this by your SSH pubkey!
-    "ssh-rsa "
+    "ssh-rsa ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyQSeQ0CV/qhZPre37+Nd0E9eW+soGs+up6a/bwggoP raphael@RAPHAELs-MacBook-Pro.local"
   ];
 
   services.openssh.enable = true;
