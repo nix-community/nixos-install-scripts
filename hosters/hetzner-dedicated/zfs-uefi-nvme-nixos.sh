@@ -20,7 +20,7 @@ EOF
 
 apt update -y
 apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64
-apt install -y sudo parted zfs-dkms zfsutils-linux grub-efi-amd64-bin
+apt install -y sudo parted zfs-dkms zfsutils-linux
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
