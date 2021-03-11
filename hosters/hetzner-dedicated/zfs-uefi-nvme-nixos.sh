@@ -12,7 +12,15 @@
 #   * - parted
 #   * - sudo
 #   * - grub-efi-amd64-bin
-apt-get install -y parted zfs-initramfs grub-efi-amd64-bin
+cat > /etc/apt/preferences.d/90_zfs <<EOF
+Package: libnvpair1linux libuutil1linux libzfs2linux libzpool2linux spl-dkms zfs-dkms zfs-test zfsutils-linux zfsutils-linux-dev zfs-zed
+Pin: release n=buster-backports
+Pin-Priority: 990
+EOF
+
+apt update -y
+apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64
+apt install -y sudo parted zfs-dkms zfsutils-linux grub-efi-amd64-bin
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
@@ -28,7 +36,7 @@ apt-get install -y parted zfs-initramfs grub-efi-amd64-bin
 # * We set a custom `configuration.nix` so that we can connect to the machine afterwards,
 #   inspired by https://nixos.wiki/wiki/Install_NixOS_on_Hetzner_Online
 # * This server has 2 SSDs.
-#   We put everything on RAIDZ.
+#   We put everything on mirror (RAID1 equivalent).
 # * A root user with empty password is created, so that you can just login
 #   as root and press enter when using the Hetzner spider KVM.
 #   Of course that empty-password login isn't exposed to the Internet.
@@ -61,6 +69,9 @@ set -x
 lsblk
 
 # check the disks that you have available
+# you have to use disks by ID with zfs
+# see https://openzfs.github.io/openzfs-docs/Getting%20Started/Ubuntu/Ubuntu%2020.04%20Root%20on%20ZFS.html#step-2-disk-formatting
+ls /dev/disk/by-id
 # should give you something like this
 # md-name-rescue:0                             nvme-eui.0025388a01051b58-part1
 # md-name-rescue:1                             nvme-eui.0025388a01051b58-part2
@@ -77,11 +88,15 @@ lsblk
 # we will use the two disks
 # nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
 # nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
-ls /dev/disk/by-id
 
+# The following variables should be replaced
 DISK1=/dev/disk/by-id/nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
 DISK2=/dev/disk/by-id/nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
+# Replace with your key
+SSH_PUB_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyQSeQ0CV/qhZPre37+Nd0E9eW+soGs+up6a/bwggoP raphael@RAPHAELs-MacBook-Pro.local"
+# choose whatever you want, it doesn't matter
 MY_HOSTNAME=hetzner-AX41-UEFI-ZFS-NVME
+MY_HOSTID=00000007
 
 # Undo existing setups to allow running the script multiple times to iterate on it.
 # We allow these operations to fail for the case the script runs the first time.
@@ -123,6 +138,9 @@ parted --script $DISK2 mklabel gpt
 #   ... part-type is one of 'primary', 'extended' or 'logical', and may be specified only with 'msdos' or 'dvh' partition tables.
 #   A name must be specified for a 'gpt' partition table.
 # GPT partition names are limited to 36 UTF-16 chars, see https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2-33).
+# TODO the bios partition should not be this big
+# however if it's less the installation fails with
+# cannot copy /nix/store/d4xbrrailkn179cdp90v4m57mqd73hvh-linux-5.4.100/bzImage to /boot/kernels/d4xbrrailkn179cdp90v4m57mqd73hvh-linux-5.4.100-bzImage.tmp: No space left on device
 parted --script --align optimal $DISK1 -- mklabel gpt \
     mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on \
     mkpart 'EFI-system-partition' 2MB 512MB set 2 esp on \
@@ -145,8 +163,9 @@ udevadm settle --timeout=5 --exit-if-exists=$DISK2-part2
 udevadm settle --timeout=5 --exit-if-exists=$DISK2-part3
 
 # Wipe any previous RAID signatures
-mdadm --zero-superblock --force $DISK1
-mdadm --zero-superblock --force $DISK2
+# somehow the previous RAID signature is only on part1
+mdadm --zero-superblock --force $DISK1-part1
+mdadm --zero-superblock --force $DISK2-part1
 
 # Creating file systems changes their UUIDs.
 # Trigger udev so that the entries in /dev/disk/by-uuid get refreshed.
@@ -161,6 +180,7 @@ zpool create -O mountpoint=none \
     -O xattr=sa \
     -O acltype=posixacl \
     -o ashift=12 \
+    -f \
     rpool mirror $DISK1-part3 $DISK2-part3
 
 # Create the filesystems. This layout is designed so that /home is separate from the root
@@ -170,6 +190,9 @@ zpool create -O mountpoint=none \
 zfs create -o mountpoint=legacy rpool/root
 zfs create -o mountpoint=legacy rpool/root/nixos
 zfs create -o mountpoint=legacy rpool/home
+# add 1G of reseved space in case the disk gets full
+# zfs needs space to delete files
+zfs create -o refreservation=1G -o mountpoint=none rpool/reserved
 # this creates a special volume for db data see https://wiki.archlinux.org/index.php/ZFS#Databases
 zfs create -o mountpoint=legacy \
     -o recordsize=8K \
@@ -184,40 +207,46 @@ zfs create -o mountpoint=legacy \
 mount -t zfs rpool/root/nixos /mnt
 mkdir /mnt/home
 mount -t zfs rpool/home /mnt/home
-mkdir /mnt/var/lib/postgres
+mkdir -p /mnt/var/lib/postgres
 mount -t zfs rpool/postgres /mnt/var/lib/postgres
-
-# Create a raid mirror of the first partitions for /boot (GRUB)
-mdadm --create --run --verbose /dev/md127 \
-    --metadata=0.90 \
-    --level=1 \
-    --raid-devices=2 \
-    --homehost=$MY_HOSTNAME \
-    --name=boot_grub \
-    $DISK1-part1 $DISK2-part1
-mkfs.ext4 -m 0 -L boot -j /dev/md127
-mkdir -p /mnt/boot/efi
-mount /dev/md127 /mnt/boot
 
 # Create a raid mirror for the efi boot
 # see https://docs.hetzner.com/robot/dedicated-server/operating-systems/efi-system-partition/
-mdadm --create --run --verbose /dev/md100 \
+# TODO check this though the following article says it doesn't work properly
+# https://outflux.net/blog/archives/2018/04/19/uefi-booting-and-raid1/ 
+mdadm --create --run --verbose /dev/md127 \
     --level 1 \
     --raid-disks 2 \
     --metadata 1.0 \
     --homehost=$MY_HOSTNAME \
     --name=boot_efi \
     $DISK1-part2 $DISK2-part2
-mkfs.vfat -F 32 /dev/md100
-mount /dev/md100 /mnt/boot/efi
-PARTITION_UUID=blkid -o value -s UUID /dev/md100
-UUID=$PARTITION_UUID /boot/efi vfat umask=0077 0 1
-grub-install \
-    --target=x86_64-efi \
-    --efi-directory=/boot/efi \
-    --no-floppy \
-    --no-nvram \
-    --removable
+
+# Assembling the RAID can result in auto-activation of previously-existing LVM
+# groups, preventing the RAID block device wiping below with
+# `Device or resource busy`. So disable all VGs first.
+vgchange -an
+
+# Wipe filesystem signatures that might be on the RAID from some
+# possibly existing older use of the disks (RAID creation does not do that).
+# See https://serverfault.com/questions/911370/why-does-mdadm-zero-superblock-preserve-file-system-information
+wipefs -a /dev/md127
+
+# Disable RAID recovery. We don't want this to slow down machine provisioning
+# in the rescue mode. It can run in normal operation after reboot.
+echo 0 > /proc/sys/dev/raid/speed_limit_max
+
+# Filesystems (-F to not ask on preexisting FS)
+mkfs.vfat -F 32 /dev/md127
+
+# Creating file systems changes their UUIDs.
+# Trigger udev so that the entries in /dev/disk/by-uuid get refreshed.
+# `nixos-generate-config` depends on those being up-to-date.
+# See https://github.com/NixOS/nixpkgs/issues/62444
+udevadm trigger
+
+mkdir -p /mnt/boot/efi
+mount /dev/md127 /mnt/boot/efi
 
 # Installing nix
 
@@ -226,6 +255,8 @@ grub-install \
 mkdir -p /etc/nix
 echo "build-users-group =" > /etc/nix/nix.conf
 
+# TODO
+# warning: installing Nix as root is not supported by this script!
 curl -L https://nixos.org/nix/install | sh
 set +u +x # sourcing this may refer to unset variables that we have no control over
 . $HOME/.nix-profile/etc/profile.d/nix.sh
@@ -238,6 +269,12 @@ nix-channel --update
 # Getting NixOS installation tools
 nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with config.system.build; [ nixos-generate-config nixos-install nixos-enter manual.manpages ]"
 
+# TODO
+# perl: warning: Please check that your locale settings:
+#         LANGUAGE = (unset),
+#         LC_ALL = "en_US.UTF-8",
+#         LANG = "en_US.UTF-8"
+#     are supported and installed on your system.
 nixos-generate-config --root /mnt
 
 # Find the name of the network interface that connects us to the Internet.
@@ -264,11 +301,9 @@ echo "Determined IP_V4 as $IP_V4"
 IP_V6="$(ip route get 2001:4860:4860:0:0:0:0:8888 | head -1 | cut -d' ' -f7 | cut -d: -f1-4)::1"
 echo "Determined IP_V6 as $IP_V6"
 
-
 # From https://stackoverflow.com/questions/1204629/how-do-i-get-the-default-gateway-in-linux-given-the-destination/15973156#15973156
 read _ _ DEFAULT_GATEWAY _ < <(ip route list match 0/0); echo "$DEFAULT_GATEWAY"
 echo "Determined DEFAULT_GATEWAY as $DEFAULT_GATEWAY"
-
 
 # Generate `configuration.nix`. Note that we splice in shell variables.
 cat > /mnt/etc/nixos/configuration.nix <<EOF
@@ -286,10 +321,13 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   boot.loader.grub = {
     enable = true;
     efiSupport = false;
-    devices = [ "$DISK1" "$DISK2" ];
+    devices = ["$DISK1" "$DISK2"];
+    copyKernels = true; 
   };
+  boot.supportedFilesystems = [ "zfs" ];
 
   networking.hostName = "$MY_HOSTNAME";
+  networking.hostId = "$MY_HOSTID";
 
   # Network (Hetzner uses static IP assignments, and we don't use DHCP here)
   networking.useDHCP = false;
@@ -313,10 +351,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   users.users.root.initialHashedPassword = "";
   services.openssh.permitRootLogin = "prohibit-password";
 
-  users.users.root.openssh.authorizedKeys.keys = [
-    # Replace this by your SSH pubkey!
-    "ssh-rsa ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyQSeQ0CV/qhZPre37+Nd0E9eW+soGs+up6a/bwggoP raphael@RAPHAELs-MacBook-Pro.local"
-  ];
+  users.users.root.openssh.authorizedKeys.keys = ["$SSH_PUB_KEY"];
 
   services.openssh.enable = true;
 
@@ -330,8 +365,9 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
 EOF
 
 # Install NixOS
-PATH="$PATH" NIX_PATH="$NIX_PATH" `which nixos-install` --no-root-passwd --root /mnt --max-jobs 40
+PATH="$PATH" NIX_PATH="$NIX_PATH" `which nixos-install` \
+  --no-root-passwd --root /mnt --max-jobs 40
 
-# umount /mnt
+umount /mnt
 
-# reboot
+reboot
