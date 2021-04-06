@@ -19,8 +19,7 @@ Pin-Priority: 990
 EOF
 
 apt update -y
-apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64
-apt install -y sudo parted zfs-dkms zfsutils-linux
+apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64 sudo parted zfs-dkms zfsutils-linux
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
@@ -44,10 +43,7 @@ apt install -y sudo parted zfs-dkms zfsutils-linux
 #   being able to login without any authentication.
 # * The script reboots at the end.
 
-set -eu
-set -o pipefail
-
-set -x
+set -euox pipefail
 
 # Inspect existing disks
 # Should give you something like
@@ -100,10 +96,8 @@ MY_HOSTID=00000007
 
 # Undo existing setups to allow running the script multiple times to iterate on it.
 # We allow these operations to fail for the case the script runs the first time.
-set +e
-umount /mnt
-vgchange -an
-set -e
+umount /mnt || true
+vgchange -an || true
 
 # Stop all mdadm arrays that the boot may have activated.
 mdadm --stop --scan
