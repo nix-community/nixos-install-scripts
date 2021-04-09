@@ -5,7 +5,7 @@
 # This is for a specific server configuration; adjust where needed.
 #
 # Prerequisites:
-#   * Update the script to put in your SSH pubkey, adjust hostname, NixOS version etc.
+#   * Update the script wherever FIXME is present
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
@@ -160,8 +160,7 @@ set +u +x # sourcing this may refer to unset variables that we have no control o
 . $HOME/.nix-profile/etc/profile.d/nix.sh
 set -u -x
 
-# Keep in sync with `system.stateVersion` set below!
-# nix-channel --add https://nixos.org/channels/nixos-20.03 nixpkgs
+# FIXME Keep in sync with `system.stateVersion` set below!
 nix-channel --add https://nixos.org/channels/nixos-20.03 nixpkgs
 nix-channel --update
 
@@ -219,7 +218,6 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
     devices = [ "/dev/sda" "/dev/sdb" ];
   };
 
-
   networking.hostName = "hetzner";
 
   # The mdadm RAID1s were created with 'mdadm --create ... --homehost=hetzner',
@@ -266,12 +264,13 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   services.openssh.permitRootLogin = "prohibit-password";
 
   users.users.root.openssh.authorizedKeys.keys = [
-    # Replace this by your SSH pubkey!
+    # FIXME Replace this by your SSH pubkey!
     "ssh-rsa AAAAAAAAAAA..."
   ];
 
   services.openssh.enable = true;
 
+  # FIXME
   # This value determines the NixOS release with which your system is to be
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
