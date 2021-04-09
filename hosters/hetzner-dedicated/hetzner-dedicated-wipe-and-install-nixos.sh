@@ -218,7 +218,6 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
     devices = [ "/dev/sda" "/dev/sdb" ];
   };
 
-  # FIXME
   networking.hostName = "hetzner";
 
   # The mdadm RAID1s were created with 'mdadm --create ... --homehost=hetzner',
