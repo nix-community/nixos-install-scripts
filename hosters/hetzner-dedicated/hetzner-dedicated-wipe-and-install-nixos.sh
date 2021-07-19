@@ -59,9 +59,13 @@ mdadm --stop --scan
 echo 'AUTO -all
 ARRAY <ignore> UUID=00000000:00000000:00000000:00000000' > /etc/mdadm/mdadm.conf
 
+# Create wrapper for parted >= 3.3 that does not exit 1 when it cannot inform
+# the kernel of partitions changing (we use partprobe for that).
+echo -e "#! /usr/bin/env bash\nset -e\n" 'parted $@ 2> parted-stderr.txt || grep "unable to inform the kernel of the change" parted-stderr.txt && echo "This is expected, continuing" || echo >&2 "Parted failed; stderr: $(< parted-stderr.txt)"' > parted-ignoring-partprobe-error.sh && chmod +x parted-ignoring-partprobe-error.sh
+
 # Create partition tables (--script to not ask)
-parted --script /dev/sda mklabel gpt
-parted --script /dev/sdb mklabel gpt
+./parted-ignoring-partprobe-error.sh --script /dev/sda mklabel gpt
+./parted-ignoring-partprobe-error.sh --script /dev/sdb mklabel gpt
 
 # Create partitions (--script to not ask)
 #
@@ -78,8 +82,8 @@ parted --script /dev/sdb mklabel gpt
 #   ... part-type is one of 'primary', 'extended' or 'logical', and may be specified only with 'msdos' or 'dvh' partition tables.
 #   A name must be specified for a 'gpt' partition table.
 # GPT partition names are limited to 36 UTF-16 chars, see https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2-33).
-parted --script --align optimal /dev/sda -- mklabel gpt mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on mkpart 'data-partition' 2MB '100%'
-parted --script --align optimal /dev/sdb -- mklabel gpt mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on mkpart 'data-partition' 2MB '100%'
+./parted-ignoring-partprobe-error.sh --script --align optimal /dev/sda -- mklabel gpt mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on mkpart 'data-partition' 2MB '100%'
+./parted-ignoring-partprobe-error.sh --script --align optimal /dev/sdb -- mklabel gpt mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on mkpart 'data-partition' 2MB '100%'
 
 # Relaod partitions
 partprobe
