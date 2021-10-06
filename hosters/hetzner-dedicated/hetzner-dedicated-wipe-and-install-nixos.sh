@@ -244,6 +244,12 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   networking.interfaces."$NIXOS_INTERFACE".ipv4.addresses = [
     {
       address = "$IP_V4";
+      # FIXME: The prefix length is commonly, but not always, 24.
+      # You should check what the prefix length is for your server
+      # by inspecting the netmask in the "IPs" tab of the Hetzner UI.
+      # For example, a netmask of 255.255.255.0 means prefix length 24
+      # (24 leading 1s), and 255.255.255.192 means prefix length 26
+      # (26 leading 1s).
       prefixLength = 24;
     }
   ];
