@@ -113,9 +113,13 @@ mdadm --stop --scan
 echo 'AUTO -all
 ARRAY <ignore> UUID=00000000:00000000:00000000:00000000' > /etc/mdadm/mdadm.conf
 
+# Create wrapper for parted >= 3.3 that does not exit 1 when it cannot inform
+# the kernel of partitions changing (we use partprobe for that).
+echo -e "#! /usr/bin/env bash\nset -e\n" 'parted $@ 2> parted-stderr.txt || grep "unable to inform the kernel of the change" parted-stderr.txt && echo "This is expected, continuing" || echo >&2 "Parted failed; stderr: $(< parted-stderr.txt)"' > parted-ignoring-partprobe-error.sh && chmod +x parted-ignoring-partprobe-error.sh
+
 # Create partition tables (--script to not ask)
-parted --script $DISK1 mklabel gpt
-parted --script $DISK2 mklabel gpt
+./parted-ignoring-partprobe-error.sh --script $DISK1 mklabel gpt
+./parted-ignoring-partprobe-error.sh --script $DISK2 mklabel gpt
 
 # Create partitions (--script to not ask)
 #
@@ -135,12 +139,12 @@ parted --script $DISK2 mklabel gpt
 # TODO the bios partition should not be this big
 # however if it's less the installation fails with
 # cannot copy /nix/store/d4xbrrailkn179cdp90v4m57mqd73hvh-linux-5.4.100/bzImage to /boot/kernels/d4xbrrailkn179cdp90v4m57mqd73hvh-linux-5.4.100-bzImage.tmp: No space left on device
-parted --script --align optimal $DISK1 -- mklabel gpt \
+./parted-ignoring-partprobe-error.sh --script --align optimal $DISK1 -- mklabel gpt \
     mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on \
     mkpart 'EFI-system-partition' 2MB 512MB set 2 esp on \
     mkpart 'data-partition' 512MB '100%'
 
-parted --script --align optimal $DISK2 -- mklabel gpt \
+./parted-ignoring-partprobe-error.sh --script --align optimal $DISK2 -- mklabel gpt \
     mkpart 'BIOS-boot-partition' 1MB 2MB set 1 bios_grub on \
     mkpart 'EFI-system-partition' 2MB 512MB set 2 esp on \
     mkpart 'data-partition' 512MB '100%'

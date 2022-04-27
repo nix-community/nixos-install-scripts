@@ -57,12 +57,16 @@ set -e
 # Stop all mdadm arrays that the boot may have activated.
 mdadm --stop --scan
 
+# Create wrapper for parted >= 3.3 that does not exit 1 when it cannot inform
+# the kernel of partitions changing (we use partprobe for that).
+echo -e "#! /usr/bin/env bash\nset -e\n" 'parted $@ 2> parted-stderr.txt || grep "unable to inform the kernel of the change" parted-stderr.txt && echo "This is expected, continuing" || echo >&2 "Parted failed; stderr: $(< parted-stderr.txt)"' > parted-ignoring-partprobe-error.sh && chmod +x parted-ignoring-partprobe-error.sh
+
 # Create partition tables (--script to not ask)
-parted --script /dev/sda mklabel gpt
-parted --script /dev/sdb mklabel gpt
-parted --script /dev/sdc mklabel gpt
-parted --script /dev/sdd mklabel gpt
-parted --script /dev/nvme0n1 mklabel gpt
+./parted-ignoring-partprobe-error.sh --script /dev/sda mklabel gpt
+./parted-ignoring-partprobe-error.sh --script /dev/sdb mklabel gpt
+./parted-ignoring-partprobe-error.sh --script /dev/sdc mklabel gpt
+./parted-ignoring-partprobe-error.sh --script /dev/sdd mklabel gpt
+./parted-ignoring-partprobe-error.sh --script /dev/nvme0n1 mklabel gpt
 
 # Create partitions (--script to not ask)
 #
@@ -84,10 +88,10 @@ parted --script /dev/nvme0n1 mklabel gpt
 #   ... part-type is one of 'primary', 'extended' or 'logical', and may be specified only with 'msdos' or 'dvh' partition tables.
 #   A name must be specified for a 'gpt' partition table.
 # GPT partition names are limited to 36 UTF-16 chars, see https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_entries_(LBA_2-33).
-parted --script --align optimal /dev/sda -- mklabel gpt mkpart 'ESP-partition0'        fat32 1MB 551MB set 1 esp on  mkpart 'OS-partition0' 551MB 500GB mkpart 'data-partition0' 500GB '100%'
-parted --script --align optimal /dev/sdb -- mklabel gpt mkpart 'ESP-partition1'        fat32 1MB 551MB set 1 esp on  mkpart 'OS-partition1' 551MB 500GB mkpart 'data-partition1' 500GB '100%'
-parted --script --align optimal /dev/sdc -- mklabel gpt mkpart 'ESP-partition2-unused' fat32 1MB 551MB set 1 esp off                                    mkpart 'data-partition2' 551MB '100%'
-parted --script --align optimal /dev/sdd -- mklabel gpt mkpart 'ESP-partition3-unused' fat32 1MB 551MB set 1 esp off                                    mkpart 'data-partition3' 551MB '100%'
+./parted-ignoring-partprobe-error.sh --script --align optimal /dev/sda -- mklabel gpt mkpart 'ESP-partition0'        fat32 1MB 551MB set 1 esp on  mkpart 'OS-partition0' 551MB 500GB mkpart 'data-partition0' 500GB '100%'
+./parted-ignoring-partprobe-error.sh --script --align optimal /dev/sdb -- mklabel gpt mkpart 'ESP-partition1'        fat32 1MB 551MB set 1 esp on  mkpart 'OS-partition1' 551MB 500GB mkpart 'data-partition1' 500GB '100%'
+./parted-ignoring-partprobe-error.sh --script --align optimal /dev/sdc -- mklabel gpt mkpart 'ESP-partition2-unused' fat32 1MB 551MB set 1 esp off                                    mkpart 'data-partition2' 551MB '100%'
+./parted-ignoring-partprobe-error.sh --script --align optimal /dev/sdd -- mklabel gpt mkpart 'ESP-partition3-unused' fat32 1MB 551MB set 1 esp off                                    mkpart 'data-partition3' 551MB '100%'
 
 # Relaod partitions
 partprobe
