@@ -29,6 +29,10 @@
 # * exports of env vars are added throughout the script in case you want to run it manually
 export LC_ALL=C
 
+# WARNING: on 2023/07/16 the rescue system of hetzner boots with kernel 6.3.7 which
+# is by default not supported by the latest debian package. You need to update to debian
+# unstable to proceed with the zfs installation.
+
 cat > /etc/apt/preferences.d/90_zfs <<EOF
 Package: libnvpair1linux libnvpair3linux libuutil1linux libuutil3linux libzfs2linux libzfs4linux libzpool2linux libzpool4linux spl-dkms zfs-dkms zfs-test zfsutils-linux zfsutils-linux-dev zfs-zed
 Pin: release n=bullseye-backports
@@ -258,17 +262,15 @@ mount /dev/md127 /mnt/boot/efi
 mkdir -p /etc/nix
 echo "build-users-group =" > /etc/nix/nix.conf
 
-# TODO
-# warning: installing Nix as root is not supported by this script!
-curl -L https://nixos.org/nix/install | sh
-set +u +x # sourcing this may refer to unset variables that we have no control over
-. $HOME/.nix-profile/etc/profile.d/nix.sh
-set -u -x
+# using determinate systems installer, for more information
+# check https://github.com/DeterminateSystems/nix-installer
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 
 # Keep in sync with `system.stateVersion` set below!
-nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
+nix-channel --add https://nixos.org/channels/nixos-23.05 nixpkgs
 nix-channel --update
 
+# TODO use something like nix shell nixpkgs#nixos-generate-config nixpkgs#nixos-install nixpkgs#nixos-enter nixpkgs#manual.manpages
 # Getting NixOS installation tools
 nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with config.system.build; [ nixos-generate-config nixos-install nixos-enter manual.manpages ]"
 
@@ -394,8 +396,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
   # should.
-  system.stateVersion = "21.11"; # Did you read the comment?
-
+  system.stateVersion = "23.05"; # Did you read the comment?
 }
 EOF
 
