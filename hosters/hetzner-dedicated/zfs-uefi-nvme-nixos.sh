@@ -4,22 +4,6 @@
 #
 # This is for a specific server configuration; adjust where needed.
 #
-# Prerequisites:
-#   * this script requires ubuntu installed
-#   * Update the script to put in your SSH pubkey, adjust hostname, NixOS version etc.
-#   * have the following packages installed
-#   * - zfs-initramfs
-#   * - parted
-#   * - sudo
-#   * - grub-efi-amd64-bin
-cat > /etc/apt/preferences.d/90_zfs <<EOF
-Package: libnvpair1linux libuutil1linux libzfs2linux libzpool2linux spl-dkms zfs-dkms zfs-test zfsutils-linux zfsutils-linux-dev zfs-zed
-Pin: release n=buster-backports
-Pin-Priority: 990
-EOF
-
-apt update -y
-apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64 sudo parted zfs-dkms zfsutils-linux
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
@@ -42,8 +26,23 @@ apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64 sudo parted 
 #   Change the password afterwards to avoid anyone with physical access
 #   being able to login without any authentication.
 # * The script reboots at the end.
+# * exports of env vars are added throughout the script in case you want to run it manually
+export LC_ALL=C
+
+cat > /etc/apt/preferences.d/90_zfs <<EOF
+Package: libnvpair1linux libnvpair3linux libuutil1linux libuutil3linux libzfs2linux libzfs4linux libzpool2linux libzpool4linux spl-dkms zfs-dkms zfs-test zfsutils-linux zfsutils-linux-dev zfs-zed
+Pin: release n=bullseye-backports
+Pin-Priority: 990
+EOF
+
+apt update -y
+apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64 sudo parted zfs-dkms zfsutils-linux
 
 set -euox pipefail
+
+# hetzner has some weird symlinks to make you install zfs with their script
+rm /usr/local/sbin/zfs || true
+rm /usr/local/sbin/zpool || true
 
 # Inspect existing disks
 # Should give you something like
@@ -86,13 +85,14 @@ ls /dev/disk/by-id
 # nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
 
 # The following variables should be replaced
-DISK1=/dev/disk/by-id/nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
-DISK2=/dev/disk/by-id/nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
+export DISK1=/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-00007_S438NC0R804840
+export DISK2=/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-00007_S438NC0R811800
 # Replace with your key
-SSH_PUB_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyQSeQ0CV/qhZPre37+Nd0E9eW+soGs+up6a/bwggoP raphael@RAPHAELs-MacBook-Pro.local"
+export SSH_PUB_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyQSeQ0CV/qhZPre37+Nd0E9eW+soGs+up6a/bwggoP raphael@RAPHAELs-MacBook-Pro.local"
 # choose whatever you want, it doesn't matter
-MY_HOSTNAME=hetzner-AX41-UEFI-ZFS-NVME
-MY_HOSTID=00000007
+export MY_HOSTNAME=htz
+# this has to be a number in this format exactly. You can replace the numbers though
+export MY_HOSTID=00000001
 
 # Undo existing setups to allow running the script multiple times to iterate on it.
 # We allow these operations to fail for the case the script runs the first time.
@@ -161,9 +161,13 @@ udevadm settle --timeout=5 --exit-if-exists=$DISK2-part2
 udevadm settle --timeout=5 --exit-if-exists=$DISK2-part3
 
 # Wipe any previous RAID signatures
-# somehow the previous RAID signature is only on part1
-mdadm --zero-superblock --force $DISK1-part1
-mdadm --zero-superblock --force $DISK2-part1
+# sometimes they are not on a specific disk for some reason
+mdadm --zero-superblock --force $DISK1-part1 || true
+mdadm --zero-superblock --force $DISK1-part2 || true
+mdadm --zero-superblock --force $DISK1-part3 || true
+mdadm --zero-superblock --force $DISK2-part1 || true
+mdadm --zero-superblock --force $DISK2-part2 || true
+mdadm --zero-superblock --force $DISK2-part3 || true
 
 # Creating file systems changes their UUIDs.
 # Trigger udev so that the entries in /dev/disk/by-uuid get refreshed.
@@ -172,6 +176,7 @@ mdadm --zero-superblock --force $DISK2-part1
 udevadm trigger
 
 # taken from https://nixos.wiki/wiki/NixOS_on_ZFS
+# somehow there is a weird symlink in the default zfs
 zpool create -O mountpoint=none \
     -O atime=off \
     -O compression=lz4 \
@@ -179,34 +184,34 @@ zpool create -O mountpoint=none \
     -O acltype=posixacl \
     -o ashift=12 \
     -f \
-    rpool mirror $DISK1-part3 $DISK2-part3
+    root_pool mirror $DISK1-part3 $DISK2-part3
 
 # Create the filesystems. This layout is designed so that /home is separate from the root
 # filesystem, as you'll likely want to snapshot it differently for backup purposes. It also
 # makes a "nixos" filesystem underneath the root, to support installing multiple OSes if
 # that's something you choose to do in future.
-zfs create -o mountpoint=legacy rpool/root
-zfs create -o mountpoint=legacy rpool/root/nixos
-zfs create -o mountpoint=legacy rpool/home
+zfs create -o mountpoint=legacy root_pool/root
+zfs create -o mountpoint=legacy root_pool/root/nixos
+zfs create -o mountpoint=legacy root_pool/home
 # add 1G of reseved space in case the disk gets full
 # zfs needs space to delete files
-zfs create -o refreservation=1G -o mountpoint=none rpool/reserved
+zfs create -o refreservation=1G -o mountpoint=none root_pool/reserved
 # this creates a special volume for db data see https://wiki.archlinux.org/index.php/ZFS#Databases
 zfs create -o mountpoint=legacy \
     -o recordsize=8K \
     -o primarycache=metadata \
     -o logbias=throughput \
-    rpool/postgres
+    root_pool/postgres
 
 # NixOS pre-installation mounts
 #
 # Mount the filesystems manually. The nixos installer will detect these mountpoints
 # and save them to /mnt/nixos/hardware-configuration.nix during the install process.
-mount -t zfs rpool/root/nixos /mnt
+mount -t zfs root_pool/root/nixos /mnt
 mkdir /mnt/home
-mount -t zfs rpool/home /mnt/home
+mount -t zfs root_pool/home /mnt/home
 mkdir -p /mnt/var/lib/postgres
-mount -t zfs rpool/postgres /mnt/var/lib/postgres
+mount -t zfs root_pool/postgres /mnt/var/lib/postgres
 
 # Create a raid mirror for the efi boot
 # see https://docs.hetzner.com/robot/dedicated-server/operating-systems/efi-system-partition/
@@ -261,7 +266,7 @@ set +u +x # sourcing this may refer to unset variables that we have no control o
 set -u -x
 
 # Keep in sync with `system.stateVersion` set below!
-nix-channel --add https://nixos.org/channels/nixos-20.09 nixpkgs
+nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
 nix-channel --update
 
 # Getting NixOS installation tools
@@ -277,26 +282,32 @@ nixos-generate-config --root /mnt
 
 # Find the name of the network interface that connects us to the Internet.
 # Inspired by https://unix.stackexchange.com/questions/14961/how-to-find-out-which-interface-am-i-using-for-connecting-to-the-internet/302613#302613
-RESCUE_INTERFACE=$(ip route get 8.8.8.8 | grep -Po '(?<=dev )(\S+)')
-
+export RESCUE_INTERFACE=$(ip route get 8.8.8.8 | grep -Po '(?<=dev )(\S+)')
 # Find what its name will be under NixOS, which uses stable interface names.
 # See https://major.io/2015/08/21/understanding-systemds-predictable-network-device-names/#comment-545626
 # NICs for most Hetzner servers are not onboard, which is why we use
 # `ID_NET_NAME_PATH`otherwise it would be `ID_NET_NAME_ONBOARD`.
-INTERFACE_DEVICE_PATH=$(udevadm info -e | grep -Po "(?<=^P: )(.*${RESCUE_INTERFACE})")
-UDEVADM_PROPERTIES_FOR_INTERFACE=$(udevadm info --query=property "--path=$INTERFACE_DEVICE_PATH")
-NIXOS_INTERFACE=$(echo "$UDEVADM_PROPERTIES_FOR_INTERFACE" | grep -o -E 'ID_NET_NAME_PATH=\w+' | cut -d= -f2)
+export INTERFACE_DEVICE_PATH=$(udevadm info -e | grep -Po "(?<=^P: )(.*${RESCUE_INTERFACE})")
+export UDEVADM_PROPERTIES_FOR_INTERFACE=$(udevadm info --query=property "--path=$INTERFACE_DEVICE_PATH")
+export NIXOS_INTERFACE=$(echo "$UDEVADM_PROPERTIES_FOR_INTERFACE" | grep -o -E 'ID_NET_NAME_PATH=\w+' | cut -d= -f2)
 echo "Determined NIXOS_INTERFACE as '$NIXOS_INTERFACE'"
-
-IP_V4=$(ip route get 8.8.8.8 | grep -Po '(?<=src )(\S+)')
+export IP_V4=$(ip route get 8.8.8.8 | grep -Po '(?<=src )(\S+)')
 echo "Determined IP_V4 as $IP_V4"
+# Find what its name will be under NixOS, which uses stable interface names.
+# See https://major.io/2015/08/21/understanding-systemds-predictable-network-device-names/#comment-545626
+# NICs for most Hetzner servers are not onboard, which is why we use
+# `ID_NET_NAME_PATH`otherwise it would be `ID_NET_NAME_ONBOARD`.
+export INTERFACE_DEVICE_PATH=$(udevadm info -e | grep -Po "(?<=^P: )(.*${RESCUE_INTERFACE})")
+export UDEVADM_PROPERTIES_FOR_INTERFACE=$(udevadm info --query=property "--path=$INTERFACE_DEVICE_PATH")
+export NIXOS_INTERFACE=$(echo "$UDEVADM_PROPERTIES_FOR_INTERFACE" | grep -o -E 'ID_NET_NAME_PATH=\w+' | cut -d= -f2)
+echo "Determined NIXOS_INTERFACE as '$NIXOS_INTERFACE'"
 
 # Determine Internet IPv6 by checking route, and using ::1
 # (because Hetzner rescue mode uses ::2 by default).
 # The `ip -6 route get` output on Hetzner looks like:
 #   # ip -6 route get 2001:4860:4860:0:0:0:0:8888
 #   2001:4860:4860::8888 via fe80::1 dev eth0 src 2a01:4f8:151:62aa::2 metric 1024  pref medium
-IP_V6="$(ip route get 2001:4860:4860:0:0:0:0:8888 | head -1 | cut -d' ' -f7 | cut -d: -f1-4)::1"
+export IP_V6="$(ip route get 2001:4860:4860::8888 | head -1 | cut -d' ' -f7 | cut -d: -f1-4)::1"
 echo "Determined IP_V6 as $IP_V6"
 
 # From https://stackoverflow.com/questions/1204629/how-do-i-get-the-default-gateway-in-linux-given-the-destination/15973156#15973156
@@ -326,6 +337,23 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
 
   networking.hostName = "$MY_HOSTNAME";
   networking.hostId = "$MY_HOSTID";
+  
+  # enable flakes by default
+  nix = {
+    package = pkgs.nixFlakes;
+    extraOptions = ''
+      experimental-features = nix-command flakes
+    '';
+  };
+
+  # Set your time zone.
+  time.timeZone = "Etc/UTC";
+
+  environment = {
+    enableDebugInfo = true;
+    # just a couple of packages to make our lives easier
+    systemPackages = with pkgs; [ vim ];
+  };
 
   # Network (Hetzner uses static IP assignments, and we don't use DHCP here)
   networking.useDHCP = false;
@@ -343,7 +371,16 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   ];
   networking.defaultGateway = "$DEFAULT_GATEWAY";
   networking.defaultGateway6 = { address = "fe80::1"; interface = "$NIXOS_INTERFACE"; };
-  networking.nameservers = [ "8.8.8.8" ];
+  networking.nameservers = [
+    # cloudflare
+    "1.1.1.1"
+    "2606:4700:4700::1111"
+    "2606:4700:4700::1001"
+    # google
+    "8.8.8.8"
+    "2001:4860:4860::8888"
+    "2001:4860:4860::8844"
+  ];
 
   # Initial empty root password for easy login:
   users.users.root.initialHashedPassword = "";
@@ -357,15 +394,23 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
   # should.
-  system.stateVersion = "20.09"; # Did you read the comment?
+  system.stateVersion = "21.11"; # Did you read the comment?
 
 }
 EOF
 
 # Install NixOS
-PATH="$PATH" NIX_PATH="$NIX_PATH" `which nixos-install` \
+PATH="$PATH" $(which nixos-install) \
   --no-root-passwd --root /mnt --max-jobs 40
 
 umount /mnt
 
 reboot
+
+# if you need to debug something
+# - connect to the rescue system
+# - install zfs
+# ```
+# zpool import -f root_pool temp_pool
+# mount -t zfs temp_pool/root/nixos /mnt
+# journalctl --directory=/mnt/var/log/journal
