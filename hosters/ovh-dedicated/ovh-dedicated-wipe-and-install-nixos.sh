@@ -108,6 +108,12 @@ udevadm settle --timeout=5 --exit-if-exists=/dev/sdc2
 udevadm settle --timeout=5 --exit-if-exists=/dev/sdd1
 udevadm settle --timeout=5 --exit-if-exists=/dev/sdd2
 
+# Some kernels while automatically create an array preventing zeroing the superblock
+# This stops the arrays
+for f in $(ls -p /dev | grep -v / | grep md); do
+  mdadm --stop /dev/$f
+done
+
 # Wipe any previous RAID signatures
 mdadm --zero-superblock /dev/sda2
 mdadm --zero-superblock /dev/sda3
