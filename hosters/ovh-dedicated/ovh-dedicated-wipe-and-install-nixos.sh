@@ -210,7 +210,7 @@ set +u +x # sourcing this may refer to unset variables that we have no control o
 . $HOME/.nix-profile/etc/profile.d/nix.sh
 set -u -x
 
-nix-channel --add https://nixos.org/channels/nixos-19.03 nixpkgs
+nix-channel --add https://nixos.org/channels/nixos-24.05 nixpkgs
 nix-channel --update
 
 # Getting NixOS installation tools
@@ -315,7 +315,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
   # should.
-  system.stateVersion = "19.03"; # Did you read the comment?
+  system.stateVersion = "24.05"; # Did you read the comment?
 
 }
 EOF
