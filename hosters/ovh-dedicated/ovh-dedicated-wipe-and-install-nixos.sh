@@ -6,7 +6,7 @@
 # Originally written for an OVH STOR-1 server.
 #
 # Prerequisites:
-#   * Create a LUKS key file at /root/benacofs-luks-key
+#   * Create a LUKS key file at $LUKS_KEYFILE_PATH
 #     e.g. by copying it up.
 #     See https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Keyfiles
 #   * Update the script to put in your SSH pubkey, adjust hostname, NixOS version etc.
@@ -36,6 +36,11 @@
 #   being able to login without any authentication.
 # * The script reboots at the end.
 
+# Edit those variables to your need
+LUKS_KEYFILE_PATH="/root/benacofs-luks-key"
+FS_NAME="benacofs"
+HOSTNAME="benaco-cdn-na1"
+HOMEHOST="benaco-cdn"
 
 set -eu
 set -o pipefail
@@ -148,12 +153,12 @@ wipefs -a /dev/md/data1-encrypted
 echo 0 > /proc/sys/dev/raid/speed_limit_max
 
 # LUKS encryption (--batch-mode to not ask)
-cryptsetup --batch-mode luksFormat /dev/md/data0-encrypted /root/benacofs-luks-key
-cryptsetup --batch-mode luksFormat /dev/md/data1-encrypted /root/benacofs-luks-key
+cryptsetup --batch-mode luksFormat /dev/md/data0-encrypted $LUKS_KEYFILE_PATH
+cryptsetup --batch-mode luksFormat /dev/md/data1-encrypted $LUKS_KEYFILE_PATH
 
 # Decrypt
-cryptsetup luksOpen /dev/md/data0-encrypted data0-unencrypted --key-file /root/benacofs-luks-key
-cryptsetup luksOpen /dev/md/data1-encrypted data1-unencrypted --key-file /root/benacofs-luks-key
+cryptsetup luksOpen /dev/md/data0-encrypted data0-unencrypted --key-file $LUKS_KEYFILE_PATH
+cryptsetup luksOpen /dev/md/data1-encrypted data1-unencrypted --key-file $LUKS_KEYFILE_PATH
 
 # LVM
 # PVs
@@ -162,13 +167,13 @@ pvcreate /dev/mapper/data1-unencrypted
 # VGs
 vgcreate vg0 /dev/mapper/data0-unencrypted /dev/mapper/data1-unencrypted
 # LVs
-lvcreate --extents 95%FREE -n benacofs vg0  # 5% slack space
+lvcreate --extents 95%FREE -n $FS_NAME vg0  # 5% slack space
 
 # Filesystems (-F to not ask on preexisting FS)
 mkfs.fat -F 32 -n esp0 /dev/disk/by-partlabel/ESP-partition0
 mkfs.fat -F 32 -n esp1 /dev/disk/by-partlabel/ESP-partition1
 mkfs.ext4 -F -L root /dev/md/root0
-mkfs.ext4 -F -L benacofs /dev/mapper/vg0-benacofs
+mkfs.ext4 -F -L $FS_NAME /dev/mapper/vg0-$FS_NAME
 
 # Creating file systems changes their UUIDs.
 # Trigger udev so that the entries in /dev/disk/by-uuid get refreshed.
@@ -178,7 +183,7 @@ udevadm trigger
 
 # Wait for FS labels to appear
 udevadm settle --timeout=5 --exit-if-exists=/dev/disk/by-label/root
-udevadm settle --timeout=5 --exit-if-exists=/dev/disk/by-label/benacofs
+udevadm settle --timeout=5 --exit-if-exists=/dev/disk/by-label/$FS_NAME
 
 # NixOS pre-installation mounts
 
@@ -261,7 +266,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # boot is just on the / partition.
   boot.loader.efi.efiSysMountPoint = "/boot/EFI";
 
-  networking.hostName = "benaco-cdn-na1";
+  networking.hostName = "$HOSTNAME;
 
   # The mdadm RAID1s were created with 'mdadm --create ... --homehost=benaco-cdn',
   # but the hostname for each CDN machine is different, and mdadm's HOMEHOST
@@ -278,7 +283,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # We do not worry about plugging disks into the wrong machine because
   # we will never exchange disks between CDN machines.
   environment.etc."mdadm.conf".text = ''
-    HOMEHOST benaco-cdn
+    HOMEHOST $HOMEHOST
   '';
   # The RAIDs are assembled in stage1, so we need to make the config
   # available there.
