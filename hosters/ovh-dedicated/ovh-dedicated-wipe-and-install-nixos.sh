@@ -8,6 +8,7 @@
 # Prerequisites:
 #   * Create a LUKS key file at /root/benacofs-luks-key
 #     e.g. by copying it up.
+#     See https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Keyfiles
 #   * Update the script to put in your SSH pubkey, adjust hostname, NixOS version etc.
 #
 # Usage:
