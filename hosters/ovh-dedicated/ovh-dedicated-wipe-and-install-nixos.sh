@@ -261,13 +261,6 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # boot is just on the / partition.
   boot.loader.efi.efiSysMountPoint = "/boot/EFI";
 
-  # OVH has an issue where on newer kernels, it can take up to 20 minutes
-  # for the default gateway to not be 'linkdown' when booting. See #812.
-  # We observed that with the 4.15 kernels so far, including OVH's own
-  # Ubuntu 18.04.
-  # Our workaround so far is to use the 4.9 kernel.
-  boot.kernelPackages = pkgs.linuxPackages_4_9;
-
   networking.hostName = "benaco-cdn-na1";
 
   # The mdadm RAID1s were created with 'mdadm --create ... --homehost=benaco-cdn',
