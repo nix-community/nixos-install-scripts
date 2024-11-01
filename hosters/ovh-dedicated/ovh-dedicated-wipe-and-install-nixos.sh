@@ -114,6 +114,12 @@ udevadm settle --timeout=5 --exit-if-exists=/dev/sdc2
 udevadm settle --timeout=5 --exit-if-exists=/dev/sdd1
 udevadm settle --timeout=5 --exit-if-exists=/dev/sdd2
 
+# Array gets created automatically
+# Stop it so mdadm can zero the superblock
+for f in $(ls -p /dev | grep -v / | grep md); do
+  mdadm --stop /dev/$f
+done
+
 # Wipe any previous RAID signatures
 mdadm --zero-superblock /dev/sda2
 mdadm --zero-superblock /dev/sda3
