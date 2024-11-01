@@ -210,8 +210,12 @@ mount /dev/disk/by-label/esp1 /mnt/boot/ESP1
 #   https://github.com/NixOS/nix/issues/936#issuecomment-475795730
 mkdir -p /etc/nix
 echo "build-users-group =" > /etc/nix/nix.conf
+echo "sandbox = false" >> /etc/nix/nix.conf
 
-curl -L https://nixos.org/nix/install | sh
+# https://github.com/NixOS/nix/issues/7790#issuecomment-1451990482
+mount --bind / /
+
+curl -L https://nixos.org/nix/install | sh -s -- --daemon --yes
 set +u +x # sourcing this may refer to unset variables that we have no control over
 . $HOME/.nix-profile/etc/profile.d/nix.sh
 set -u -x
