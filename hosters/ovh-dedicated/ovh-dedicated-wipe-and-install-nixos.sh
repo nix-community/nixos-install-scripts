@@ -224,7 +224,7 @@ nix-channel --add https://nixos.org/channels/nixos-24.05 nixpkgs
 nix-channel --update
 
 # Getting NixOS installation tools
-nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with config.system.build; [ nixos-generate-config nixos-install nixos-enter manual.manpages ]"
+nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with pkgs; [ nixos-install-tools ]"
 
 nixos-generate-config --root /mnt
 
