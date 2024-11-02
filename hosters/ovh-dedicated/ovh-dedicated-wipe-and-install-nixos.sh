@@ -234,7 +234,7 @@ nixos-generate-config --root /mnt
 INTERFACE=$(udevadm info -e | grep -A 11 ^P.*eth0 | grep -o -E 'ID_NET_NAME_ONBOARD=\w+' | cut -d= -f2)
 echo "Determined INTERFACE as $INTERFACE"
 
-IP_V4=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
+IP_V4=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f7)
 echo "Determined IP_V4 as $IP_V4"
 
 # From https://stackoverflow.com/questions/1204629/how-do-i-get-the-default-gateway-in-linux-given-the-destination/15973156#15973156
