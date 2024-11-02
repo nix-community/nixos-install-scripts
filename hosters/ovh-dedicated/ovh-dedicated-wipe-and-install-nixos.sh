@@ -6,8 +6,9 @@
 # Originally written for an OVH STOR-1 server.
 #
 # Prerequisites:
-#   * Create a LUKS key file at /root/benacofs-luks-key
+#   * Create a LUKS key file at $LUKS_KEYFILE_PATH
 #     e.g. by copying it up.
+#     See https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Keyfiles
 #   * Update the script to put in your SSH pubkey, adjust hostname, NixOS version etc.
 #
 # Usage:
@@ -35,6 +36,11 @@
 #   being able to login without any authentication.
 # * The script reboots at the end.
 
+# Edit those variables to your need
+LUKS_KEYFILE_PATH="/root/benacofs-luks-key"
+FS_NAME="benacofs"
+HOSTNAME="benaco-cdn-na1"
+HOMEHOST="benaco-cdn"
 
 set -eu
 set -o pipefail
@@ -108,8 +114,8 @@ udevadm settle --timeout=5 --exit-if-exists=/dev/sdc2
 udevadm settle --timeout=5 --exit-if-exists=/dev/sdd1
 udevadm settle --timeout=5 --exit-if-exists=/dev/sdd2
 
-# Some kernels while automatically create an array preventing zeroing the superblock
-# This stops the arrays
+# Array gets created automatically
+# Stop it so mdadm can zero the superblock
 for f in $(ls -p /dev | grep -v / | grep md); do
   mdadm --stop /dev/$f
 done
@@ -153,12 +159,12 @@ wipefs -a /dev/md/data1-encrypted
 echo 0 > /proc/sys/dev/raid/speed_limit_max
 
 # LUKS encryption (--batch-mode to not ask)
-cryptsetup --batch-mode luksFormat /dev/md/data0-encrypted /root/benacofs-luks-key
-cryptsetup --batch-mode luksFormat /dev/md/data1-encrypted /root/benacofs-luks-key
+cryptsetup --batch-mode luksFormat /dev/md/data0-encrypted $LUKS_KEYFILE_PATH
+cryptsetup --batch-mode luksFormat /dev/md/data1-encrypted $LUKS_KEYFILE_PATH
 
 # Decrypt
-cryptsetup luksOpen /dev/md/data0-encrypted data0-unencrypted --key-file /root/benacofs-luks-key
-cryptsetup luksOpen /dev/md/data1-encrypted data1-unencrypted --key-file /root/benacofs-luks-key
+cryptsetup luksOpen /dev/md/data0-encrypted data0-unencrypted --key-file $LUKS_KEYFILE_PATH
+cryptsetup luksOpen /dev/md/data1-encrypted data1-unencrypted --key-file $LUKS_KEYFILE_PATH
 
 # LVM
 # PVs
@@ -167,13 +173,13 @@ pvcreate /dev/mapper/data1-unencrypted
 # VGs
 vgcreate vg0 /dev/mapper/data0-unencrypted /dev/mapper/data1-unencrypted
 # LVs
-lvcreate --extents 95%FREE -n benacofs vg0  # 5% slack space
+lvcreate --extents 95%FREE -n $FS_NAME vg0  # 5% slack space
 
 # Filesystems (-F to not ask on preexisting FS)
 mkfs.fat -F 32 -n esp0 /dev/disk/by-partlabel/ESP-partition0
 mkfs.fat -F 32 -n esp1 /dev/disk/by-partlabel/ESP-partition1
 mkfs.ext4 -F -L root /dev/md/root0
-mkfs.ext4 -F -L benacofs /dev/mapper/vg0-benacofs
+mkfs.ext4 -F -L $FS_NAME /dev/mapper/vg0-$FS_NAME
 
 # Creating file systems changes their UUIDs.
 # Trigger udev so that the entries in /dev/disk/by-uuid get refreshed.
@@ -183,7 +189,7 @@ udevadm trigger
 
 # Wait for FS labels to appear
 udevadm settle --timeout=5 --exit-if-exists=/dev/disk/by-label/root
-udevadm settle --timeout=5 --exit-if-exists=/dev/disk/by-label/benacofs
+udevadm settle --timeout=5 --exit-if-exists=/dev/disk/by-label/$FS_NAME
 
 # NixOS pre-installation mounts
 
@@ -204,17 +210,21 @@ mount /dev/disk/by-label/esp1 /mnt/boot/ESP1
 #   https://github.com/NixOS/nix/issues/936#issuecomment-475795730
 mkdir -p /etc/nix
 echo "build-users-group =" > /etc/nix/nix.conf
+echo "sandbox = false" >> /etc/nix/nix.conf
 
-curl -L https://nixos.org/nix/install | sh
+# https://github.com/NixOS/nix/issues/7790#issuecomment-1451990482
+mount --bind / /
+
+curl -L https://nixos.org/nix/install | sh -s -- --daemon --yes
 set +u +x # sourcing this may refer to unset variables that we have no control over
 . $HOME/.nix-profile/etc/profile.d/nix.sh
 set -u -x
 
-nix-channel --add https://nixos.org/channels/nixos-19.03 nixpkgs
+nix-channel --add https://nixos.org/channels/nixos-24.05 nixpkgs
 nix-channel --update
 
 # Getting NixOS installation tools
-nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with config.system.build; [ nixos-generate-config nixos-install nixos-enter manual.manpages ]"
+nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with pkgs; [ nixos-install-tools ]"
 
 nixos-generate-config --root /mnt
 
@@ -224,7 +234,7 @@ nixos-generate-config --root /mnt
 INTERFACE=$(udevadm info -e | grep -A 11 ^P.*eth0 | grep -o -E 'ID_NET_NAME_ONBOARD=\w+' | cut -d= -f2)
 echo "Determined INTERFACE as $INTERFACE"
 
-IP_V4=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
+IP_V4=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f7)
 echo "Determined IP_V4 as $IP_V4"
 
 # From https://stackoverflow.com/questions/1204629/how-do-i-get-the-default-gateway-in-linux-given-the-destination/15973156#15973156
@@ -266,14 +276,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # boot is just on the / partition.
   boot.loader.efi.efiSysMountPoint = "/boot/EFI";
 
-  # OVH has an issue where on newer kernels, it can take up to 20 minutes
-  # for the default gateway to not be 'linkdown' when booting. See #812.
-  # We observed that with the 4.15 kernels so far, including OVH's own
-  # Ubuntu 18.04.
-  # Our workaround so far is to use the 4.9 kernel.
-  boot.kernelPackages = pkgs.linuxPackages_4_9;
-
-  networking.hostName = "benaco-cdn-na1";
+  networking.hostName = "$HOSTNAME;
 
   # The mdadm RAID1s were created with 'mdadm --create ... --homehost=benaco-cdn',
   # but the hostname for each CDN machine is different, and mdadm's HOMEHOST
@@ -290,7 +293,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # We do not worry about plugging disks into the wrong machine because
   # we will never exchange disks between CDN machines.
   environment.etc."mdadm.conf".text = ''
-    HOMEHOST benaco-cdn
+    HOMEHOST $HOMEHOST
   '';
   # The RAIDs are assembled in stage1, so we need to make the config
   # available there.
@@ -322,7 +325,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
   # should.
-  system.stateVersion = "19.03"; # Did you read the comment?
+  system.stateVersion = "24.05"; # Did you read the comment?
 
 }
 EOF
