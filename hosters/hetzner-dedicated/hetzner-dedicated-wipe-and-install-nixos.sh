@@ -249,13 +249,12 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   networking.interfaces."$NIXOS_INTERFACE".ipv4.addresses = [
     {
       address = "$IP_V4";
-      # FIXME: The prefix length is commonly, but not always, 24.
-      # You should check what the prefix length is for your server
-      # by inspecting the netmask in the "IPs" tab of the Hetzner UI.
-      # For example, a netmask of 255.255.255.0 means prefix length 24
-      # (24 leading 1s), and 255.255.255.192 means prefix length 26
-      # (26 leading 1s).
-      prefixLength = 24;
+      # Hetzner requires /32, see:
+      #     https://docs.hetzner.com/robot/dedicated-server/network/net-config-debian-ubuntu/#ipv4.
+      # NixOS automatically sets up a route to the gateway
+      # (but only because we set "networking.defaultGateway.interface" below), see
+      #     https://github.com/NixOS/nixops/pull/1032#issuecomment-2763497444
+      prefixLength = 32;
     }
   ];
   networking.interfaces."$NIXOS_INTERFACE".ipv6.addresses = [
@@ -264,7 +263,11 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
       prefixLength = 64;
     }
   ];
-  networking.defaultGateway = "$DEFAULT_GATEWAY";
+  networking.defaultGateway = {
+    address = "$DEFAULT_GATEWAY";
+    # Interface must be given for Hetzner networking to work, see comment above.
+    interface = "$NIXOS_INTERFACE";
+  };
   networking.defaultGateway6 = { address = "fe80::1"; interface = "$NIXOS_INTERFACE"; };
   networking.nameservers = [ "8.8.8.8" ];
 
