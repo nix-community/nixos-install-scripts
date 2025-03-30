@@ -4,6 +4,8 @@
 #
 # This is for a specific server configuration; adjust where needed.
 #
+# Prerequisites:
+#   * Update the script wherever FIXME is present
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
@@ -88,11 +90,11 @@ ls /dev/disk/by-id
 # nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
 # nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
 
-# The following variables should be replaced
+# FIXME The following variables should be replaced
 export DISK1=/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-00007_S438NC0R804840
 export DISK2=/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-00007_S438NC0R811800
-# Replace with your key
-export SSH_PUB_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyQSeQ0CV/qhZPre37+Nd0E9eW+soGs+up6a/bwggoP raphael@RAPHAELs-MacBook-Pro.local"
+# FIXME Replace this by your SSH pubkey!
+export SSH_PUB_KEY="AAAAAAAAAAA..."
 # choose whatever you want, it doesn't matter
 export MY_HOSTNAME=htz
 # this has to be a number in this format exactly. You can replace the numbers though
@@ -266,7 +268,7 @@ echo "build-users-group =" > /etc/nix/nix.conf
 # check https://github.com/DeterminateSystems/nix-installer
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 
-# Keep in sync with `system.stateVersion` set below!
+# FIXME Keep in sync with `system.stateVersion` set below!
 nix-channel --add https://nixos.org/channels/nixos-23.05 nixpkgs
 nix-channel --update
 
@@ -392,6 +394,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
 
   services.openssh.enable = true;
 
+  # FIXME
   # This value determines the NixOS release with which your system is to be
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
