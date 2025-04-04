@@ -35,20 +35,15 @@ export LC_ALL=C
 # is by default not supported by the latest debian package. You need to update to debian
 # unstable to proceed with the zfs installation.
 
-cat > /etc/apt/preferences.d/90_zfs <<EOF
-Package: libnvpair1linux libnvpair3linux libuutil1linux libuutil3linux libzfs2linux libzfs4linux libzpool2linux libzpool4linux spl-dkms zfs-dkms zfs-test zfsutils-linux zfsutils-linux-dev zfs-zed
-Pin: release n=bullseye-backports
-Pin-Priority: 990
-EOF
-
-apt update -y
-apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64 sudo parted zfs-dkms zfsutils-linux
-
 set -euox pipefail
 
-# hetzner has some weird symlinks to make you install zfs with their script
-rm /usr/local/sbin/zfs || true
-rm /usr/local/sbin/zpool || true
+# Install zfs via Hetzner's install helper.
+# The helper impersonates the `zfs` and `zpool` commands in the Rescue system.
+# It asks for confirmation; provide it with `y`.
+ if grep -q -i hetzner /usr/local/sbin/zfs "$(which zfs)" ]; then
+  echo "Installing ZFS from Hetzner Rescue system";
+  echo y | zfs
+fi
 
 # Inspect existing disks
 # Should give you something like
@@ -273,8 +268,10 @@ nix-channel --add https://nixos.org/channels/nixos-24.11 nixpkgs
 nix-channel --update
 
 # TODO use something like nix shell nixpkgs#nixos-generate-config nixpkgs#nixos-install nixpkgs#nixos-enter nixpkgs#manual.manpages
-# Getting NixOS installation tools
-nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; (with config.system.build; [ nixos-generate-config nixos-install ]) ++ (with pkgs; [ nixos-enter ])"
+# Getting NixOS installation tools.
+# In NixOS 24.11, `nixos-enter` is deprecated from `system.build` and should come from `pkgs`,
+# but to also support <= 24.05, we keep taking it from `system.build` for now.`
+nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; (with config.system.build; [ nixos-generate-config nixos-install nixos-enter ]) ++ (with pkgs; [ ])"
 
 # TODO
 # perl: warning: Please check that your locale settings:
@@ -338,6 +335,8 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
     copyKernels = true; 
   };
   boot.supportedFilesystems = [ "zfs" ];
+  boot.swraid.enable = true;
+  boot.kernelParams = ["boot.shell_on_fail"];
 
   networking.hostName = "$MY_HOSTNAME";
   networking.hostId = "$MY_HOSTID";
