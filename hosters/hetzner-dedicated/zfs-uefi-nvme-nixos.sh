@@ -67,23 +67,34 @@ lsblk
 # check the disks that you have available
 # you have to use disks by ID with zfs
 # see https://openzfs.github.io/openzfs-docs/Getting%20Started/Ubuntu/Ubuntu%2020.04%20Root%20on%20ZFS.html#step-2-disk-formatting
-ls /dev/disk/by-id
+ls -1 /dev/disk/by-id
 # should give you something like this
-# md-name-rescue:0                             nvme-eui.0025388a01051b58-part1
-# md-name-rescue:1                             nvme-eui.0025388a01051b58-part2
-# md-name-rescue:2                             nvme-eui.0025388a01051b58-part3
-# md-uuid-15391820:32e070f6:ecbfb99e:e983e018  nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
-# md-uuid-48379d14:3c44fe11:e6528eec:ad784ade  nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part1
-# md-uuid-f2a894fc:9e90e3af:9af81d28:b120ae1f  nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part2
-# nvme-eui.0025388a01051b55                    nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part3
-# nvme-eui.0025388a01051b55-part1              nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
-# nvme-eui.0025388a01051b55-part2              nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part1
-# nvme-eui.0025388a01051b55-part3              nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part2
-# nvme-eui.0025388a01051b58                    nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part3
+#     md-name-rescue:0
+#     md-name-rescue:1
+#     md-name-rescue:2
+#     md-uuid-15391820:32e070f6:ecbfb99e:e983e018
+#     md-uuid-48379d14:3c44fe11:e6528eec:ad784ade
+#     md-uuid-f2a894fc:9e90e3af:9af81d28:b120ae1f
+#     nvme-eui.0025388a01051b55
+#     nvme-eui.0025388a01051b55-part1
+#     nvme-eui.0025388a01051b55-part2
+#     nvme-eui.0025388a01051b55-part3
+#     nvme-eui.0025388a01051b58
+#     nvme-eui.0025388a01051b58-part1
+#     nvme-eui.0025388a01051b58-part2
+#     nvme-eui.0025388a01051b58-part3
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part1
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part2
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part3
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part1
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part2
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part3
 #
 # we will use the two disks
-# nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
-# nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
 
 # FIXME The following variables should be replaced
 export DISK1=/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-00007_S438NC0R804840
