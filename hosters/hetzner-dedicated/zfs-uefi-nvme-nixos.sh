@@ -408,7 +408,9 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
 
   # Initial empty root password for easy login:
   users.users.root.initialHashedPassword = "";
-  services.openssh.permitRootLogin = "prohibit-password";
+  services.openssh.settings = {
+    PermitRootLogin = "prohibit-password";
+  };
 
   users.users.root.openssh.authorizedKeys.keys = ["$SSH_PUB_KEY"];
 
