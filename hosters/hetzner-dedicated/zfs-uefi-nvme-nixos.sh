@@ -265,14 +265,23 @@ mount /dev/md127 /mnt/boot/efi
 
 # Installing nix
 
+# Installing nix requires `sudo`; the Hetzner rescue mode doesn't have it.
+apt-get install -y sudo
+
 # Allow installing nix as root, see
 #   https://github.com/NixOS/nix/issues/936#issuecomment-475795730
 mkdir -p /etc/nix
 echo "build-users-group =" > /etc/nix/nix.conf
 
-# using determinate systems installer, for more information
-# check https://github.com/DeterminateSystems/nix-installer
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+# Allow installing nix as root, see
+#   https://github.com/NixOS/nix/issues/936#issuecomment-475795730
+mkdir -p /etc/nix
+echo "build-users-group =" > /etc/nix/nix.conf
+
+curl -L https://nixos.org/nix/install | sh
+set +u +x # sourcing this may refer to unset variables that we have no control over
+. $HOME/.nix-profile/etc/profile.d/nix.sh
+set -u -x
 
 # FIXME Keep in sync with `system.stateVersion` set below!
 nix-channel --add https://nixos.org/channels/nixos-24.11 nixpkgs
