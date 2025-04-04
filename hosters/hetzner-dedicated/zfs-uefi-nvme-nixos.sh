@@ -426,8 +426,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
 EOF
 
 # Install NixOS
-PATH="$PATH" $(which nixos-install) \
-  --no-root-passwd --root /mnt --max-jobs 40
+PATH="$PATH" $(which nixos-install) --no-root-passwd --root /mnt --max-jobs 40
 
 umount /mnt
 
