@@ -361,14 +361,6 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   networking.hostName = "$MY_HOSTNAME";
   networking.hostId = "$MY_HOSTID";
   
-  # enable flakes by default
-  nix = {
-    package = pkgs.nixFlakes;
-    extraOptions = ''
-      experimental-features = nix-command flakes
-    '';
-  };
-
   # Set your time zone.
   time.timeZone = "Etc/UTC";
 
