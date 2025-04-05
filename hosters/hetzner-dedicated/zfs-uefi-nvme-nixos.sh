@@ -445,6 +445,7 @@ EOF
 # Install NixOS
 PATH="$PATH" $(which nixos-install) --no-root-passwd --root /mnt --max-jobs 40
 
+umount /mnt/boot/efi
 umount /mnt
 
 reboot
