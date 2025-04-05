@@ -269,12 +269,12 @@ echo "build-users-group =" > /etc/nix/nix.conf
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 
 # FIXME Keep in sync with `system.stateVersion` set below!
-nix-channel --add https://nixos.org/channels/nixos-23.05 nixpkgs
+nix-channel --add https://nixos.org/channels/nixos-24.11 nixpkgs
 nix-channel --update
 
 # TODO use something like nix shell nixpkgs#nixos-generate-config nixpkgs#nixos-install nixpkgs#nixos-enter nixpkgs#manual.manpages
 # Getting NixOS installation tools
-nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with config.system.build; [ nixos-generate-config nixos-install nixos-enter manual.manpages ]"
+nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; (with config.system.build; [ nixos-generate-config nixos-install ]) ++ (with pkgs; [ nixos-enter ])"
 
 # TODO
 # perl: warning: Please check that your locale settings:
@@ -399,7 +399,7 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
   # should.
-  system.stateVersion = "23.05"; # Did you read the comment?
+  system.stateVersion = "24.11"; # Did you read the comment?
 }
 EOF
 
