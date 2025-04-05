@@ -4,6 +4,8 @@
 #
 # This is for a specific server configuration; adjust where needed.
 #
+# Prerequisites:
+#   * Update the script wherever FIXME is present
 #
 # Usage:
 #     ssh root@YOUR_SERVERS_IP bash -s < hetzner-dedicated-wipe-and-install-nixos.sh
@@ -33,20 +35,15 @@ export LC_ALL=C
 # is by default not supported by the latest debian package. You need to update to debian
 # unstable to proceed with the zfs installation.
 
-cat > /etc/apt/preferences.d/90_zfs <<EOF
-Package: libnvpair1linux libnvpair3linux libuutil1linux libuutil3linux libzfs2linux libzfs4linux libzpool2linux libzpool4linux spl-dkms zfs-dkms zfs-test zfsutils-linux zfsutils-linux-dev zfs-zed
-Pin: release n=bullseye-backports
-Pin-Priority: 990
-EOF
-
-apt update -y
-apt install -y dpkg-dev linux-headers-$(uname -r) linux-image-amd64 sudo parted zfs-dkms zfsutils-linux
-
 set -euox pipefail
 
-# hetzner has some weird symlinks to make you install zfs with their script
-rm /usr/local/sbin/zfs || true
-rm /usr/local/sbin/zpool || true
+# Install zfs via Hetzner's install helper.
+# The helper impersonates the `zfs` and `zpool` commands in the Rescue system.
+# It asks for confirmation; provide it with `y`.
+ if grep -q -i hetzner /usr/local/sbin/zfs "$(which zfs)" ]; then
+  echo "Installing ZFS from Hetzner Rescue system";
+  echo y | zfs
+fi
 
 # Inspect existing disks
 # Should give you something like
@@ -70,29 +67,40 @@ lsblk
 # check the disks that you have available
 # you have to use disks by ID with zfs
 # see https://openzfs.github.io/openzfs-docs/Getting%20Started/Ubuntu/Ubuntu%2020.04%20Root%20on%20ZFS.html#step-2-disk-formatting
-ls /dev/disk/by-id
+ls -1 /dev/disk/by-id
 # should give you something like this
-# md-name-rescue:0                             nvme-eui.0025388a01051b58-part1
-# md-name-rescue:1                             nvme-eui.0025388a01051b58-part2
-# md-name-rescue:2                             nvme-eui.0025388a01051b58-part3
-# md-uuid-15391820:32e070f6:ecbfb99e:e983e018  nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
-# md-uuid-48379d14:3c44fe11:e6528eec:ad784ade  nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part1
-# md-uuid-f2a894fc:9e90e3af:9af81d28:b120ae1f  nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part2
-# nvme-eui.0025388a01051b55                    nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part3
-# nvme-eui.0025388a01051b55-part1              nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
-# nvme-eui.0025388a01051b55-part2              nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part1
-# nvme-eui.0025388a01051b55-part3              nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part2
-# nvme-eui.0025388a01051b58                    nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part3
+#     md-name-rescue:0
+#     md-name-rescue:1
+#     md-name-rescue:2
+#     md-uuid-15391820:32e070f6:ecbfb99e:e983e018
+#     md-uuid-48379d14:3c44fe11:e6528eec:ad784ade
+#     md-uuid-f2a894fc:9e90e3af:9af81d28:b120ae1f
+#     nvme-eui.0025388a01051b55
+#     nvme-eui.0025388a01051b55-part1
+#     nvme-eui.0025388a01051b55-part2
+#     nvme-eui.0025388a01051b55-part3
+#     nvme-eui.0025388a01051b58
+#     nvme-eui.0025388a01051b58-part1
+#     nvme-eui.0025388a01051b58-part2
+#     nvme-eui.0025388a01051b58-part3
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part1
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part2
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424-part3
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part1
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part2
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427-part3
 #
 # we will use the two disks
-# nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
-# nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00424
+#     nvme-SAMSUNG_MZVLB512HBJQ-00000_S4GENA0NA00427
 
-# The following variables should be replaced
+# FIXME The following variables should be replaced
 export DISK1=/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-00007_S438NC0R804840
 export DISK2=/dev/disk/by-id/nvme-SAMSUNG_MZQLB3T8HALS-00007_S438NC0R811800
-# Replace with your key
-export SSH_PUB_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyQSeQ0CV/qhZPre37+Nd0E9eW+soGs+up6a/bwggoP raphael@RAPHAELs-MacBook-Pro.local"
+# FIXME Replace this by your SSH pubkey!
+export SSH_PUB_KEY="AAAAAAAAAAA..."
 # choose whatever you want, it doesn't matter
 export MY_HOSTNAME=htz
 # this has to be a number in this format exactly. You can replace the numbers though
@@ -181,12 +189,29 @@ udevadm trigger
 
 # taken from https://nixos.wiki/wiki/NixOS_on_ZFS
 # somehow there is a weird symlink in the default zfs
+#
+# `-o compatibility=grub2` is needed because this
+# script makes GRUB boot from root-on-ZFS (there's
+# no separate non-ZFS `/boot` that contains kernels
+# and initrds).
+# Without it,`nixos-install` fails with
+#     grub-install: error: unknown filesystem
+# since GRUB's installer iteslf already tries to read the ZFS
+# filesystem, and that fails if ZFS uses features that
+# GRUB's ZFS support does not understand.
+# See https://discourse.nixos.org/t/failing-to-successfully-install-grub-on-zfs-please-help/55387/9
+# TODO: It would be better to not do it this way,
+#       and instead install kernels/initrd outside
+#       of ZFS because GRUB does not do error
+#       recovery using mirrors, see
+#       https://discourse.nixos.org/t/disko-partition-setup-on-uefi-system-which-has-fallback-boot-partition/51968/2?u=nh2
 zpool create -O mountpoint=none \
     -O atime=off \
     -O compression=lz4 \
     -O xattr=sa \
     -O acltype=posixacl \
     -o ashift=12 \
+    -o compatibility=grub2 \
     -f \
     root_pool mirror $DISK1-part3 $DISK2-part3
 
@@ -257,22 +282,33 @@ mount /dev/md127 /mnt/boot/efi
 
 # Installing nix
 
+# Installing nix requires `sudo`; the Hetzner rescue mode doesn't have it.
+apt-get install -y sudo
+
 # Allow installing nix as root, see
 #   https://github.com/NixOS/nix/issues/936#issuecomment-475795730
 mkdir -p /etc/nix
 echo "build-users-group =" > /etc/nix/nix.conf
 
-# using determinate systems installer, for more information
-# check https://github.com/DeterminateSystems/nix-installer
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+# Allow installing nix as root, see
+#   https://github.com/NixOS/nix/issues/936#issuecomment-475795730
+mkdir -p /etc/nix
+echo "build-users-group =" > /etc/nix/nix.conf
 
-# Keep in sync with `system.stateVersion` set below!
-nix-channel --add https://nixos.org/channels/nixos-23.05 nixpkgs
+curl -L https://nixos.org/nix/install | sh
+set +u +x # sourcing this may refer to unset variables that we have no control over
+. $HOME/.nix-profile/etc/profile.d/nix.sh
+set -u -x
+
+# FIXME Keep in sync with `system.stateVersion` set below!
+nix-channel --add https://nixos.org/channels/nixos-24.11 nixpkgs
 nix-channel --update
 
 # TODO use something like nix shell nixpkgs#nixos-generate-config nixpkgs#nixos-install nixpkgs#nixos-enter nixpkgs#manual.manpages
-# Getting NixOS installation tools
-nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with config.system.build; [ nixos-generate-config nixos-install nixos-enter manual.manpages ]"
+# Getting NixOS installation tools.
+# In NixOS 24.11, `nixos-enter` is deprecated from `system.build` and should come from `pkgs`,
+# but to also support <= 24.05, we keep taking it from `system.build` for now.`
+nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; (with config.system.build; [ nixos-generate-config nixos-install nixos-enter ]) ++ (with pkgs; [ ])"
 
 # TODO
 # perl: warning: Please check that your locale settings:
@@ -336,18 +372,12 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
     copyKernels = true; 
   };
   boot.supportedFilesystems = [ "zfs" ];
+  boot.swraid.enable = true;
+  boot.kernelParams = ["boot.shell_on_fail"];
 
   networking.hostName = "$MY_HOSTNAME";
   networking.hostId = "$MY_HOSTID";
   
-  # enable flakes by default
-  nix = {
-    package = pkgs.nixFlakes;
-    extraOptions = ''
-      experimental-features = nix-command flakes
-    '';
-  };
-
   # Set your time zone.
   time.timeZone = "Etc/UTC";
 
@@ -362,7 +392,12 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   networking.interfaces."$NIXOS_INTERFACE".ipv4.addresses = [
     {
       address = "$IP_V4";
-      prefixLength = 24;
+      # Hetzner requires /32, see:
+      #     https://docs.hetzner.com/robot/dedicated-server/network/net-config-debian-ubuntu/#ipv4.
+      # NixOS automatically sets up a route to the gateway
+      # (but only because we set "networking.defaultGateway.interface" below), see
+      #     https://github.com/NixOS/nixops/pull/1032#issuecomment-2763497444
+      prefixLength = 32;
     }
   ];
   networking.interfaces."$NIXOS_INTERFACE".ipv6.addresses = [
@@ -371,7 +406,11 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
       prefixLength = 64;
     }
   ];
-  networking.defaultGateway = "$DEFAULT_GATEWAY";
+  networking.defaultGateway = {
+    address = "$DEFAULT_GATEWAY";
+    # Interface must be given for Hetzner networking to work, see comment above.
+    interface = "$NIXOS_INTERFACE";
+  };
   networking.defaultGateway6 = { address = "fe80::1"; interface = "$NIXOS_INTERFACE"; };
   networking.nameservers = [
     # cloudflare
@@ -386,24 +425,27 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
 
   # Initial empty root password for easy login:
   users.users.root.initialHashedPassword = "";
-  services.openssh.permitRootLogin = "prohibit-password";
+  services.openssh.settings = {
+    PermitRootLogin = "prohibit-password";
+  };
 
   users.users.root.openssh.authorizedKeys.keys = ["$SSH_PUB_KEY"];
 
   services.openssh.enable = true;
 
+  # FIXME
   # This value determines the NixOS release with which your system is to be
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
   # should.
-  system.stateVersion = "23.05"; # Did you read the comment?
+  system.stateVersion = "24.11"; # Did you read the comment?
 }
 EOF
 
 # Install NixOS
-PATH="$PATH" $(which nixos-install) \
-  --no-root-passwd --root /mnt --max-jobs 40
+PATH="$PATH" $(which nixos-install) --no-root-passwd --root /mnt --max-jobs 40
 
+umount /mnt/boot/efi
 umount /mnt
 
 reboot

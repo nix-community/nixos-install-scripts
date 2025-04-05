@@ -165,11 +165,13 @@ set +u +x # sourcing this may refer to unset variables that we have no control o
 set -u -x
 
 # FIXME Keep in sync with `system.stateVersion` set below!
-nix-channel --add https://nixos.org/channels/nixos-20.03 nixpkgs
+nix-channel --add https://nixos.org/channels/nixos-24.11 nixpkgs
 nix-channel --update
 
-# Getting NixOS installation tools
-nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; with config.system.build; [ nixos-generate-config nixos-install nixos-enter manual.manpages ]"
+# Getting NixOS installation tools.
+# In NixOS 24.11, `nixos-enter` is deprecated from `system.build` and should come from `pkgs`,
+# but to also support <= 24.05, we keep taking it from `system.build` for now.`
+nix-env -iE "_: with import <nixpkgs/nixos> { configuration = {}; }; (with config.system.build; [ nixos-generate-config nixos-install nixos-enter ]) ++ (with pkgs; [ ])"
 
 nixos-generate-config --root /mnt
 
@@ -221,6 +223,8 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
     efiSupport = false;
     devices = [ "/dev/sda" "/dev/sdb" ];
   };
+  boot.swraid.enable = true;
+  boot.kernelParams = ["boot.shell_on_fail"];
 
   networking.hostName = "hetzner";
 
@@ -236,25 +240,21 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # We do not worry about plugging disks into the wrong machine because
   # we will never exchange disks between machines, so we tell mdadm to
   # ignore the homehost entirely.
-  environment.etc."mdadm.conf".text = ''
+  boot.swraid.mdadmConf = ''
     HOMEHOST <ignore>
   '';
-  # The RAIDs are assembled in stage1, so we need to make the config
-  # available there.
-  boot.initrd.mdadmConf = config.environment.etc."mdadm.conf".text;
 
   # Network (Hetzner uses static IP assignments, and we don't use DHCP here)
   networking.useDHCP = false;
   networking.interfaces."$NIXOS_INTERFACE".ipv4.addresses = [
     {
       address = "$IP_V4";
-      # FIXME: The prefix length is commonly, but not always, 24.
-      # You should check what the prefix length is for your server
-      # by inspecting the netmask in the "IPs" tab of the Hetzner UI.
-      # For example, a netmask of 255.255.255.0 means prefix length 24
-      # (24 leading 1s), and 255.255.255.192 means prefix length 26
-      # (26 leading 1s).
-      prefixLength = 24;
+      # Hetzner requires /32, see:
+      #     https://docs.hetzner.com/robot/dedicated-server/network/net-config-debian-ubuntu/#ipv4.
+      # NixOS automatically sets up a route to the gateway
+      # (but only because we set "networking.defaultGateway.interface" below), see
+      #     https://github.com/NixOS/nixops/pull/1032#issuecomment-2763497444
+      prefixLength = 32;
     }
   ];
   networking.interfaces."$NIXOS_INTERFACE".ipv6.addresses = [
@@ -263,13 +263,19 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
       prefixLength = 64;
     }
   ];
-  networking.defaultGateway = "$DEFAULT_GATEWAY";
+  networking.defaultGateway = {
+    address = "$DEFAULT_GATEWAY";
+    # Interface must be given for Hetzner networking to work, see comment above.
+    interface = "$NIXOS_INTERFACE";
+  };
   networking.defaultGateway6 = { address = "fe80::1"; interface = "$NIXOS_INTERFACE"; };
   networking.nameservers = [ "8.8.8.8" ];
 
   # Initial empty root password for easy login:
   users.users.root.initialHashedPassword = "";
-  services.openssh.permitRootLogin = "prohibit-password";
+  services.openssh.settings = {
+    PermitRootLogin = "prohibit-password";
+  };
 
   users.users.root.openssh.authorizedKeys.keys = [
     # FIXME Replace this by your SSH pubkey!
@@ -283,13 +289,13 @@ cat > /mnt/etc/nixos/configuration.nix <<EOF
   # compatible, in order to avoid breaking some software such as database
   # servers. You should change this only after NixOS release notes say you
   # should.
-  system.stateVersion = "20.03"; # Did you read the comment?
+  system.stateVersion = "24.11"; # Did you read the comment?
 
 }
 EOF
 
 # Install NixOS
-PATH="$PATH" NIX_PATH="$NIX_PATH" `which nixos-install` --no-root-passwd --root /mnt --max-jobs 40
+PATH="$PATH" `which nixos-install` --no-root-passwd --root /mnt --max-jobs 40
 
 umount /mnt
 
