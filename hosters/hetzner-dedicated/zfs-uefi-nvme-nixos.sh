@@ -189,12 +189,29 @@ udevadm trigger
 
 # taken from https://nixos.wiki/wiki/NixOS_on_ZFS
 # somehow there is a weird symlink in the default zfs
+#
+# `-o compatibility=grub2` is needed because this
+# script makes GRUB boot from root-on-ZFS (there's
+# no separate non-ZFS `/boot` that contains kernels
+# and initrds).
+# Without it,`nixos-install` fails with
+#     grub-install: error: unknown filesystem
+# since GRUB's installer iteslf already tries to read the ZFS
+# filesystem, and that fails if ZFS uses features that
+# GRUB's ZFS support does not understand.
+# See https://discourse.nixos.org/t/failing-to-successfully-install-grub-on-zfs-please-help/55387/9
+# TODO: It would be better to not do it this way,
+#       and instead install kernels/initrd outside
+#       of ZFS because GRUB does not do error
+#       recovery using mirrors, see
+#       https://discourse.nixos.org/t/disko-partition-setup-on-uefi-system-which-has-fallback-boot-partition/51968/2?u=nh2
 zpool create -O mountpoint=none \
     -O atime=off \
     -O compression=lz4 \
     -O xattr=sa \
     -O acltype=posixacl \
     -o ashift=12 \
+    -o compatibility=grub2 \
     -f \
     root_pool mirror $DISK1-part3 $DISK2-part3
 
