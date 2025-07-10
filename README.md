@@ -12,3 +12,5 @@ See the `hosters` directory for available hosters.
 Each script contains instructions at the top.
 
 You must slighly modify the script, most importantly, to put your login credentials (SSH key) into it.
+
+Some folders also have `README.md` files with addtional hoster-specific tips for NixOS config for and beyond the initial install.
