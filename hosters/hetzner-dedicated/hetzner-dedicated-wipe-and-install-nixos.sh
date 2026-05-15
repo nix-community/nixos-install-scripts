@@ -15,11 +15,11 @@
 # Explanations:
 #
 # * Adapted from https://gist.github.com/nh2/78d1c65e33806e7728622dbe748c2b6a
-# * Following largely https://nixos.org/nixos/manual/index.html#sec-installing-from-other-distro.
+# * Following largely https://nixos.org/manual/nixos/stable/index.html#sec-installing-from-other-distro.
 # * **Important:** We boot in legacy-BIOS mode, not UEFI, because that's what Hetzner uses.
 #   * NVMe devices aren't supported for booting (those require EFI boot)
 # * We set a custom `configuration.nix` so that we can connect to the machine afterwards,
-#   inspired by https://nixos.wiki/wiki/Install_NixOS_on_Hetzner_Online
+#   inspired by https://wiki.nixos.org/wiki/Install_NixOS_on_Hetzner_Online
 # * This server has 2 HDDs.
 #   We put everything on RAID1.
 #   Storage scheme: `partitions -> RAID -> LVM -> ext4`.

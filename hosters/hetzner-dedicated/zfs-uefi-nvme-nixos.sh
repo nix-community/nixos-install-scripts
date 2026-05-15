@@ -14,12 +14,12 @@
 
 # Explanations:
 #
-# * Following largely https://nixos.org/nixos/manual/index.html#sec-installing-from-other-distro.
-# * and https://nixos.wiki/wiki/NixOS_on_ZFS
+# * Following largely https://nixos.org/manual/nixos/stable/index.html#sec-installing-from-other-distro.
+# * and https://wiki.nixos.org/wiki/ZFS
 # * **Important:** First you need to boot in legacy-BIOS mode. Then ask for
 # hetzner support to enable UEFI for you.
 # * We set a custom `configuration.nix` so that we can connect to the machine afterwards,
-#   inspired by https://nixos.wiki/wiki/Install_NixOS_on_Hetzner_Online
+#   inspired by https://wiki.nixos.org/wiki/Install_NixOS_on_Hetzner_Online
 # * This server has 2 SSDs.
 #   We put everything on mirror (RAID1 equivalent).
 # * A root user with empty password is created, so that you can just login
@@ -187,7 +187,7 @@ mdadm --zero-superblock --force $DISK2-part3 || true
 # See https://github.com/NixOS/nixpkgs/issues/62444
 udevadm trigger
 
-# taken from https://nixos.wiki/wiki/NixOS_on_ZFS
+# taken from https://wiki.nixos.org/wiki/ZFS
 # somehow there is a weird symlink in the default zfs
 #
 # `-o compatibility=grub2` is needed because this
